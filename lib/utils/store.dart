@@ -1,0 +1,33 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<bool> updateFavorites(String userId, String recipeId) {
+  DocumentReference favoritesReference = FirebaseFirestore.instance.collection('users').doc(userId);
+
+  return FirebaseFirestore.instance.runTransaction((Transaction tx) async {
+    DocumentSnapshot postSnapshot = await tx.get(favoritesReference);
+    if (postSnapshot.exists) {
+      // Extend 'favorites' if the list does not contain the recipe ID:
+      if (!postSnapshot.get('favorites').contains(recipeId)) {
+        tx.update(favoritesReference, <String, dynamic>{
+          'favorites': FieldValue.arrayUnion([recipeId])
+        });
+        // Delete the recipe ID from 'favorites':
+      } else {
+        tx.update(favoritesReference, <String, dynamic>{
+          'favorites': FieldValue.arrayRemove([recipeId])
+        });
+      }
+    } else {
+      // Create a document for the current user in collection 'users'
+      // and add a new array 'favorites' to the document:
+      tx.set(favoritesReference, {
+        'favorites': [recipeId]
+      });
+    }
+  }).then((result) {
+    return true;
+  }).catchError((error) {
+    print('Error: $error');
+    return false;
+  });
+}
